@@ -20,9 +20,9 @@ var transporter = nodemailer.createTransport({
 module.exports.sendConfirmationEmail=(email,activationCode)=>{
     transporter.sendMail({
         from: 'safwene.essayes@ensi-uma.tn',
-        to: 'safwene.essayes@ensi-uma.tn',
+        to: email,
         subject: 'mail de confirmation',
-        html: `<a href="http://localhost:8081/confirm/${activationCode}">cliquer ici</a>`
+        html: `<a href="http://localhost:3000/user/confirmation/${activationCode}">cliquer ici</a>`
     
       }, function(error, info){
         if (error) {

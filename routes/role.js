@@ -6,10 +6,10 @@ const jwt = require('jsonwebtoken');
 const verifierRole = require('../middlwares/verifierRole')
 const verifierToken = require('../middlwares/verifierToken');
 const adminRole="66630b9a2e92ee4420e7b5a7";
-
-// ajouter un role
-
-router.post('/addrole',verifierRole(adminRole) ,(req,res)=>{
+const verifierPermission=require('../middlwares/verifierPermission')
+// create un role
+const CreateRole="CreateRole"
+router.post('/addrole',verifierPermission(CreateRole) ,(req,res)=>{
     data=req.body;
     role = new Role(data);
     role.save()

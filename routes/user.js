@@ -7,7 +7,7 @@ const Role = require('../models/Role')
 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { sendConfirmationEmail } = require('../nodemailer');
+const {sendConfirmationEmail} = require('../nodemailer');
 
 const { ObjectId } = require('mongoose');
 
@@ -18,71 +18,118 @@ const verifierToken = require('../middlwares/verifierToken')
 
 
 
-/*const chars="0123456789AZERTYUIOPMLKJHGFDSQWXCVBNazertyuiopmlkjhgfdsqwxcvbn";
+const chars="0123456789AZERTYUIOPMLKJHGFDSQWXCVBNazertyuiopmlkjhgfdsqwxcvbn";
 let activationCode="";
 for(let i =0;i<25;i++){
     activationCode+=chars[Math.floor(Math.random()*chars.length)];
 
-}*/
-
-// registration
-router.post('/register',async(req, res) => {
-    data= req.body;
-    console.log(data);
-    usr= new User(data);
+}
+// fct de creation de user
+const newUser=function(){
+    return (
+        async(req, res) => {
+            data= req.body;
+            usr= new User(data);
+            
+            //verification d'email dupliqueé
+            user1= await User.findOne({email:usr.email});
+            if(user1){
+                console.log("🚀 ~ router.post ~ email déja existant:",usr.email )
+                res.status(409).send('email déja existant')
+            }else{
+                salt=bcrypt.genSaltSync(10);// generate random string pour hasher pwd
+                cryptedPass = await bcrypt.hashSync(data.passWord,salt)  ; 
+                usr.isActive=false
+                usr.role='66630bc63e2b9f14de48b45d'
+                usr.passWord=cryptedPass;//enregistrer la pwd crypteé dan la bd
+                usr.activationCode=activationCode;
+            
+                usr.save()
+                .then((saved) => {
+                    console.log("🚀 ~ .then ~ saved:", saved);
+                    res.status(200).send(saved);
+                })
+                    
+                .catch((err) => {
+                    res.status(400).send(err);
+                });
+            
+            //utuliser  la methode sendConfirmationEmail
+            sendConfirmationEmail(usr.email, usr.activationCode);
+        
+            }
+        
+        }
+    )
+        
     
+}
+// registration
+router.post('/register',newUser());
 
-    salt=bcrypt.genSaltSync(10);// generate random string pour hasher pwd
-    cryptedPass = await bcrypt.hashSync(data.passWord,salt)  ; 
-     
-    usr.passWord=cryptedPass;//enregistrer la pwd crypteé dan la bd
-    //usr.activationCode=activationCode;
 
-    usr.save()
-    .then((saved) => {
-        res.status(200).send(saved);
-    })
-    .catch((err) => {
-        res.status(400).send(err);
-    });
 
-//utuliser  la methode sendConfirmationEmail
-sendConfirmationEmail(usr.email, usr.activationCode);
 
-});
+   
+//mail confirmation
+   
+router.get('/confirmation/:activationCode',async(req,res)=>{
+try{
+    console.log("🚀 ~ router.get ~ activationCode:", activationCode)
+    user=await User.findOne({activationCode:req.params.activationCode})
+    if(!user){
+        res.sendStatus(404)
+    }else{
+        user.isActive=true
+        user.save()
+        res.status(200).send({message:"compte activé"})
+    }
+}catch(e){
+     res.status(500).send('error')
+}
+    
+   })
 
 
     //login
     router.post('/login',async(req,res)=>{
         data=req.body;
+       
         user1= await User.findOne({email:data.email});
         if(!user1){
-            res.status(404).send('email or password invalid')
+            console.log("🚀 ~ router.post ~ user1:", user1)
+            res.status(404).send('email or password inexistant')
 
         }else{
-            validPass=bcrypt.compare(data.passWord,user1.passWord)
+            validPass=await bcrypt.compare(data.passWord,user1.passWord)
+            // console.log("🚀 ~ router.post ~ validPass:", validPass)
+            // console.log("🚀 ~ router.post ~ !validPass:", !validPass)
+            // console.log("🚀 ~ router.post ~ user1.passWord:", user1.passWord)
+            // console.log("🚀 ~ router.post ~ data.passWord:", data.passWord)
             if(!validPass){
-                res.status(404).send('email or password invalid')
-
+                res.status(404).send('email or password inexistant')
             }else{
-                /*if ( !user.isActive){
-                    return res.send({
-                        accessToken:null,
+                if ( !user1.isActive){
+                    console.log("🚀 ~ router.post ~ user1:", user1)
+                    console.log("🚀 ~ router.post ~ user1.isActive:", user1.isActive)
+                    return res.status(401).send({
+                        token:null,
                         message:"verifier votr mail"
                     });
-                }else{*/
+                }else{
 
                     payload={
                         nom:user1.nom,
                         email:user1.email,
                         _id:user1._id,
                         role:user1.role,
+                        permission:user1.permission,
                         salair:user1.salair
                     }
-                    token=jwt.sign(payload,"123456789", { expiresIn: '1h' })
+                    token=jwt.sign(payload,"123456789", { expiresIn: '100h' })
                     res.status(200).send({token:token})
     
-                }
+                }}
                
             }
         }
@@ -100,55 +147,60 @@ router.post('/logout',verifierToken,(req,res)=>{
 
 
 
+// const verifierPermission=require('../middlwares/verifierPermission')
 
-
-    //donner salair pour user specifique
-    router.get('/getsalair',verifierToken,(req,res)=>{
+//     //donner salair pour user specifique
+//     AfficherSalair="AfficherSalair"
+//     router.get('/getsalair',verifierPermission(AfficherSalair), (req,res)=>{
         
-            User.findOne({salair:req.user.salair})
-        .then(
-            (usr)=>{
+//             User.findOne({salair:req.user.salair})
+//         .then(
+//             (usr)=>{
                 
-                //res.send(usr)// temchi mregla
-                //res.send(usr.salair);// erreur express deprecated res.send(status): Use res.sendStatus(status) instead
-                res.json(usr.salair);//l coorection ta3 l'erreur b .json fi 3odh .send ki chtab3ath att bark mch objet JSON kamel
-            }
-        )
-        .catch(
-            (err)=>{
-                res.send(err);//tab3ath erreur lel partie front
-            }
-        )
+//                 //res.send(usr)// temchi mregla
+//                 //res.send(usr.salair);// erreur express deprecated res.send(status): Use res.sendStatus(status) instead
+//                 res.json(usr.salair);//l coorection ta3 l'erreur b .json fi 3odh .send ki chtab3ath att bark mch objet JSON kamel
+//             }
+//         )
+//         .catch(
+//             (err)=>{
+//                 res.send(err);//tab3ath erreur lel partie front
+//             }
+//         )
        
-    })
+//     })
 
-    const adminRole="66630b9a2e92ee4420e7b5a7";
+    
   
     
+const verifierPermission=require('../middlwares/verifierPermission')
+
+// ajouter des user par l'admin
+CreateUser="CreateUser"
+router.post("/adduser",verifierPermission(CreateUser),newUser())
 
 
-    // ajouter des user par l'admin
-    
-     router.post("/adduser",verifierRole(adminRole),(req,res)=>{
-        data= req.body;
-        console.log(data);
-        
 
-        usr= new User(data);
-        usr.save()
-            .then(
-                (savedU)=>res.send(savedU)
-            )
-            .catch(
-                (err)=>{
-                    res.send(err)
-                }
 
-            )
+//afficher touts le user
+     router.get('/getuser',verifierRole(), (req,res)=>{
+          User.find()
+        .then(
+             (users)=>{
+                res.status(200).json(users);
+             })
+        .catch(
+             (err)=>{
+                 res.status(500).send(err);
+                })
+            })
+ 
 
-     })
+
+
 // modification de role
-router.patch('/update/:id',verifierRole(adminRole),(req,res)=>{
+ModifierRole="ModifierRole"
+router.patch('/update/:id',verifierPermission(ModifierRole),(req,res)=>{
     myid=req.params.id;
     newData=req.body;
     User.findOneAndUpdate({_id:myid},newData)
@@ -156,17 +208,17 @@ router.patch('/update/:id',verifierRole(adminRole),(req,res)=>{
         (updated)=>{
             console.log(updated);
             res.send(updated);
-            
-        }
-    )
-
-    
+        })
     .catch(
         (err)=>{
             res.send(err);
-        }
-    )
+        })
 
+
+})
+
+router.get('/userInfo/:name',(req,res)=>{
+    data=res.body
 
 })
 
