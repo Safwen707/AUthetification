@@ -15,7 +15,7 @@ const verifierRole = require('../middlwares/verifierRole')
 const verifierToken = require('../middlwares/verifierToken')
 
 
-
+const connectEnsureLogin=require('connect-ensure-login');
 
 
 const chars="0123456789AZERTYUIOPMLKJHGFDSQWXCVBNazertyuiopmlkjhgfdsqwxcvbn";
@@ -217,9 +217,16 @@ router.patch('/update/:id',verifierPermission(ModifierRole),(req,res)=>{
 
 })
 
-router.get('/userInfo/:name',(req,res)=>{
-    data=res.body
-
+router.get('/userInfo/:myEmail',(req,res)=>{
+    User.findOne({email:myEmail})
+    .then(
+        (usr)=>{
+            res.send(usr);
+        })
+    .catch(
+        (err)=>{
+            res.send(err);
+        })
 })
 
 
